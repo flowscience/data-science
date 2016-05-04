@@ -1,3 +1,7 @@
+#This function finds Jaccard indices for each pair of sublists within two named vectors
+#The output is a dataframe containing all statistics relevant to the computation
+#Example named vector: list1 = list(one=c(1,2,3), two=c(2,3,4))
+
 jaccards <- function(list1, list2){
 	sapply(list1, function(x){
 		jacc <- sapply(list1, function(x) sapply(list2, function(y) length(intersect(x,y))/length(union(x,y))))
