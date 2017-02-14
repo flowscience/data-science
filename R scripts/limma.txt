@@ -1,0 +1,44 @@
+#Load Ciona life cycle data
+gse <- read.delim("C:/Users/Eli/Desktop/Smith_Lab/GEO_data/life_cycle/data/GSE6308_slimdata2.txt", stringsAsFactors=FALSE)
+gse2 <- gse
+rownames(gse2) <- gse$ID
+gse2 <- gse2[,2:37]
+gse3 <- as.matrix(sapply(gse2, as.numeric))
+gse4 <- data.frame(gse3)
+rownames(gse4) <- rownames(gse2)
+
+#Load sample matrix
+targets <- read.delim("C:/Users/Eli/Desktop/Smith_Lab/GEO_data/life_cycle/data/gse6308_limma_sample_table.txt", stringsAsFactors=FALSE)
+targs <- targets[,3:5]
+design <- modelMatrix(targs, ref="FE")
+
+#Estimate relative quality weights for each array
+arrayw <- arrayWeights(gse4)
+barplot(arrayw, xlab="Array", ylab="Weight", col="white", las=2)
+
+#Fit linear model
+fit <-lmFit(gse4, design)
+contrast.matrix <- makeContrasts(levels=design, s4cell-s2cell, s8cell-s2cell, s8cell-s4cell, s16cell-s2cell, s16cell-s4cell, s16cell-s8cell, s32cell-s2cell, s32cell-s4cell, s32cell-s8cell, s32cell-s16cell, s64cell-s2cell, s64cell-s4cell, s64cell-s8cell, s64cell-s16cell, s64cell-s32cell, EG-s2cell, EG-s4cell, EG-s8cell, EG-s16cell, EG-s32cell, EG-s64cell, LG-s2cell, LG-s4cell, LG-s8cell, LG-s16cell, LG-s32cell, LG-s64cell, LG-EG, ITB-s2cell, ITB-s4cell, ITB-s8cell, ITB-s16cell, ITB-s32cell, ITB-s64cell, ITB-EG, ITB-LG, MTB-s2cell, MTB-s4cell, MTB-s8cell, MTB-s16cell, MTB-s32cell, MTB-s64cell, MTB-EG, MTB-LG, MTB-ITB, MTB-ETB, LTB-s2cell, LTB-s4cell, LTB-s16cell, LTB-s32cell, LTB-s64cell, LTB-EG, LTB-LG, LTB-ITB, LTB-ETB, LTB-MTB, LV-s2cell, LV-s4cell, LV-s8cell, LV-s16cell, LV-s32cell, LV-s64cell, LV-EG, LV-LG, LV-ITB, LV-ETB, LV-MTB, LV-LTB)
+contrast_sequential <- makeContrasts(levels=design, 
+	s32cell, s64cell, EG, LG, EN
+	s32cell-s16cell, s64cell-s32cell, EG-s64cell, 
+	LG-EG, ITB-LG)
+contrast.matrix <- makeContrasts(levels=design,
+	E64-E32, EG-E32, LG-E32, EN-E32,
+	EG-E64, LG-EG, EN-LG)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+
+
+topTable(fitw, coef=1, adjust="BH")
+results <- decideTests(fitw, method="global")
+
+#Fit weighted model
+fitw <- lmFit(gse3, weights=arrayw)
+fitw <- eBayes(fitw)
+topTable(fitw, coef=1, adjust="BH")
+results <- decideTests(fitw, method="global")
+
+
+
+

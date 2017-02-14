@@ -1,0 +1,32 @@
+#Quantile extraction (25th & 75th percentiles)
+E32 <- subset(lfc, lfc$E32 <= quantile(lfc$E32)[2] | lfc$E32 >= quantile(lfc$E32)[4], select=c(Clone,E32, AveExpr))
+E64 <- subset(lfc, lfc$E64 <= quantile(lfc$E64)[2] | lfc$E64 >= quantile(lfc$E64)[4], select=c(Clone,E64, AveExpr))
+EG <- subset(lfc, lfc$EG <= quantile(lfc$EG)[2] | lfc$EG >= quantile(lfc$EG)[4], select=c(Clone,EG, AveExpr))
+LG <- subset(lfc, lfc$LG <= quantile(lfc$LG)[2] | lfc$LG >= quantile(lfc$LG)[4], select=c(Clone,LG, AveExpr))
+EN <- subset(lfc, lfc$EN <= quantile(lfc$EN)[2] | lfc$EN >= quantile(lfc$EN)[4], select=c(Clone,EN, AveExpr))
+E64E32 <- subset(lfc, lfc$E64E32 <= quantile(lfc$E64E32)[2] | lfc$E64E32 >= quantile(lfc$E64E32)[4], select=c(Clone,E64E32, AveExpr))
+EGE64 <- subset(lfc, lfc$EGE64 <= quantile(lfc$EGE64)[2] | lfc$EGE64 >= quantile(lfc$EGE64)[4], select=c(Clone,EGE64, AveExpr))
+LGEG <- subset(lfc, lfc$LGEG <= quantile(lfc$LGEG)[2] | lfc$LGEG >= quantile(lfc$LGEG)[4], select=c(Clone,LGEG, AveExpr))
+ENLG <- subset(lfc, lfc$ENLG <= quantile(lfc$ENLG)[2] | lfc$ENLG >= quantile(lfc$ENLG)[4], select=c(Clone,ENLG, AveExpr))
+
+#Extract below/above 10th & 90th percentiles, repespectively.
+E32p90 <- subset(lfc, lfc$E32 <= quantile(lfc$E32, c(.1)) | lfc$E32 >= quantile(lfc$E32, c(.9)), select=c(Clone,E32, AveExpr))
+E64p90 <- subset(lfc, lfc$E64 <= quantile(lfc$E64, c(.1)) | lfc$E64 >= quantile(lfc$E64, c(.9)), select=c(Clone,E64, AveExpr))
+EGp90 <- subset(lfc, lfc$EG <= quantile(lfc$EG, c(.1)) | lfc$EG >= quantile(lfc$EG, c(.9)), select=c(Clone,EG, AveExpr))
+LGp90 <- subset(lfc, lfc$LG <= quantile(lfc$LG, c(.1)) | lfc$LG >= quantile(lfc$LG, c(.9)), select=c(Clone,LG, AveExpr))
+ENp90 <- subset(lfc, lfc$EN <= quantile(lfc$EN, c(.1)) | lfc$EN >= quantile(lfc$EN, c(.9)), select=c(Clone,EN, AveExpr))
+E64E32p90 <- subset(lfc, lfc$E64E32 <= quantile(lfc$E64E32, c(.1)) | lfc$E64E32 >= quantile(lfc$E64E32, c(.9)), select=c(Clone,E64E32, AveExpr))
+EGE64p90 <- subset(lfc, lfc$EGE64 <= quantile(lfc$EGE64, c(.1)) | lfc$EGE64 >= quantile(lfc$EGE64, c(.9)), select=c(Clone,EGE64, AveExpr))
+LGEGp90 <- subset(lfc, lfc$LGEG <= quantile(lfc$LGEG, c(.1)) | lfc$LGEG >= quantile(lfc$LGEG, c(.9)), select=c(Clone,LGEG, AveExpr))
+ENLGp90 <- subset(lfc, lfc$ENLG <= quantile(lfc$ENLG, c(.1)) | lfc$ENLG >= quantile(lfc$ENLG, c(.9)), select=c(Clone,ENLG, AveExpr))[,2:4]
+
+#Export filtered results
+write.table(E32p90, "C:/users/eli/desktop/otx_targets/limma_lfc/E32p90_90percentile.txt", quote=FALSE, sep='\t')
+write.table(E64p90, "C:/users/eli/desktop/otx_targets/limma_lfc/E64p90_90percentile.txt", quote=FALSE, sep='\t')
+write.table(EGp90, "C:/users/eli/desktop/otx_targets/limma_lfc/EGp90_90percentile.txt", quote=FALSE, sep='\t')
+write.table(LGp90, "C:/users/eli/desktop/otx_targets/limma_lfc/LGp90_90percentile.txt", quote=FALSE, sep='\t')
+write.table(ENp90, "C:/users/eli/desktop/otx_targets/limma_lfc/ENp90_90percentile.txt", quote=FALSE, sep='\t')
+write.table(E64E32p90, "C:/users/eli/desktop/otx_targets/limma_lfc/E64E32p90_90percentile.txt", quote=FALSE, sep='\t')
+write.table(EGE64p90, "C:/users/eli/desktop/otx_targets/limma_lfc/EGE64p90_90percentile.txt", quote=FALSE, sep='\t')
+write.table(LGEGp90, "C:/users/eli/desktop/otx_targets/limma_lfc/LGEGp90_90percentile.txt", quote=FALSE, sep='\t')
+write.table(ENLGp90, "C:/users/eli/desktop/otx_targets/limma_lfc/ENLGp90_90percentile.txt", quote=FALSE, sep='\t')

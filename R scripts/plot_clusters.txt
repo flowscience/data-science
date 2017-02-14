@@ -1,0 +1,28 @@
+k4 <- read.delim("C:/Users/Eli/Desktop/Otx_targets/KMC-clust4.txt", row.names="ID_REF")
+kt4 <- t(k4)
+dat.m4 <- melt(kt4,id.vars='row.names')
+sd4 <- c()
+for(i in c(1:21)){sd4<-c(sd, sd(kt4[,i], na.rm=TRUE))}
+sd_med4 <- which(sd4 > median(sd))
+sdkt4 <- kt4[,sd_med4]
+dat.m4sd <- melt(sdkt4,id.vars='row.names')
+p <- ggplot(dat.m4sd, aes(x=Var1, y=value, group=Var2))
+p + geom_line()
+
+ranges4 <- c()
+for(i in c(1:21)){ranges4<-c(ranges4, max(kt4[,i], na.rm=TRUE)-min(kt4[,i], na.rm=TRUE))}
+ranges_mean4 <- which(ranges4 > mean(ranges4))
+kt4_upmean <- kt4[,ranges_mean4]
+kt4_hi <- melt(kt4_upmean,id.vars='row.names')
+
+ggplot(melt(kt4[,15:20], id.vars='row.names'), aes(x=Var1, y=value, group=Var2)) + geom_line()
+ggplot(kt4_hi, aes(x=Var1, y=value, group=Var2, colour=Var2)) + geom_line() + geom_point()
+
+#Embryonic stages only
+kt4 <- kt4[1:14,]
+ranges4 <- c()
+for(i in c(1:21)){ranges4<-c(ranges4, max(kt4[,i], na.rm=TRUE)-min(kt4[,i], na.rm=TRUE))}
+ranges_mean4 <- which(ranges4 > mean(ranges4))
+kt4_upmean <- kt4[,ranges_mean4]
+kt4_hi <- melt(kt4_upmean,id.vars='row.names')
+ggplot(kt4_hi, aes(x=Var1, y=value, group=Var2, colour=Var2)) + geom_line() + geom_point()

@@ -1,0 +1,77 @@
+library(edgeR)
+#Load sample data
+#x <- read.delim("C:/RNAseq/miRNA_data/counts/compiled_mir_counts_1cpm3_10reps.txt", row.names="miRNA")
+x <- read.delim("C:/rnaseq/mirna_data/1cpm3_nopara2_counts_10rep.txt", row.names="miRNA")
+group <- c("A", "A", "B", "B", "C", "C", "C", "D", "D", "D")
+
+#x <- read.delim("C:/RNAseq/polya_data/rpkm/count_strand_redo_rpkm5for3.txt", row.names="Gene")
+#group <- c("A", "A", "A", "B", "B", "B", "C", "C", "C", "D", "D", "D")
+
+#x <- read.delim("C:/RNAseq/polya_data/rpkm/count_strand_redo_rpkm5for3_lessT3R3.txt", row.names="Gene")
+#group <- c("A", "A", "A", "B", "B", "B", "C", "C", "D", "D", "D")
+
+#Perform LRT (ANOVA-like) DE calculations
+y <- DGEList(counts=x,group=group)
+y <- calcNormFactors(y)
+design <- model.matrix(~group, data=y$samples)
+y <- estimateGLMCommonDisp(y,design)
+y <- estimateGLMTrendedDisp(y,design)
+y <- estimateGLMTagwiseDisp(y,design)
+plotBCV(y, main="Dispersion Estimates")
+plotMDS(y, main="MDS of Samples")
+fit <- glmFit(y,design)
+
+#Assess full model
+lrt <- glmLRT(fit, coef=2:4)
+FDR <- p.adjust(lrt$table$PValue, method="BH")
+sum(FDR < 0.05)
+
+#Retrieve top DE genes across all samples
+(top <- rownames(topTags(lrt, n=sum(FDR < 0.05))))
+cpm(y)[top,]
+
+#Assess pairwise comparisons between groups
+lrt1 <- glmLRT(fit,coef=2)
+lrt3 <- glmLRT(fit,coef=3)
+lrt8 <- glmLRT(fit,coef=4)
+
+#Plot DE genes for pairwise comparisons
+summary(dt1 <- decideTestsDGE(lrt1))
+isDE1 <- as.logical(dt1)
+DEnames1 <- rownames(y)[isDE1]
+plotSmear(lrt1, de.tags=DEnames1, main="1dpa DE Genes")
+abline(h=c(-1,1), col="blue")
+summary(dt3 <- decideTestsDGE(lrt3))
+isDE3 <- as.logical(dt3)
+DEnames3 <- rownames(y)[isDE3]
+plotSmear(lrt3, de.tags=DEnames3, main="3dpa DE Genes")
+abline(h=c(-1,1), col="blue")
+summary(dt8 <- decideTestsDGE(lrt8))
+isDE8 <- as.logical(dt8)
+DEnames8 <- rownames(y)[isDE8]
+plotSmear(lrt8, de.tags=DEnames8, main="8dpa DE Genes")
+abline(h=c(-1,1), col="blue")
+
+#Export results
+sink("C:/rnaseq/mirna_data/clusters/10rep_redo2/1cpm3redo_EdgeR_LRT_summary.txt")
+#sink("C:/rnaseq/polya_data/clusters/5rpkm3redo_lessT3R3_EdgeR_LRT_summary.txt")
+
+"Total # DE Genes"
+sum(FDR < 0.05)
+"1dpa"
+summary(dt1 <- decideTestsDGE(lrt1))
+"3dpa"
+summary(dt3 <- decideTestsDGE(lrt3))
+"8dpa"
+summary(dt8 <- decideTestsDGE(lrt8))
+sink()
+options(width=10000)
+write.table(topTags(lrt, n=sum(FDR < 0.05)), "C:/rnaseq/mirna_data/clusters/10rep_redo2/1cpm3redo_edgeR_LRT05.txt", quote=FALSE, sep='\t')
+write.table(topTags(lrt, n=sum(FDR < 2)), "C:/rnaseq/mirna_data/clusters/10rep_redo2/1cpm3redo_edgeR_LRT.txt", quote=FALSE, sep='\t')
+write.table(topTags(lrt1, n=sum(FDR < 0.05)), "C:/rnaseq/mirna_data/clusters/10rep_redo2/1cpm3redo_edgeR_LRT_1dpa.txt", quote=FALSE, sep='\t')
+write.table(topTags(lrt3, n=sum(FDR < 0.05)), "C:/rnaseq/mirna_data/clusters/10rep_redo2/1cpm3redo_edgeR_LRT_3dpa.txt", quote=FALSE, sep='\t')
+write.table(topTags(lrt8, n=sum(FDR < 0.05)), "C:/rnaseq/mirna_data/clusters/10rep_redo2/1cpm3redo_edgeR_LRT_8dpa.txt", quote=FALSE, sep='\t')
+#write.table(topTags(lrt, n=sum(FDR < 1)), "C:/rnaseq/polya_data/clusters/5rpkm3redo_edgeR_LRT_all.txt", quote=FALSE, sep='\t')
+#write.table(topTags(lrt1, n=sum(FDR < 0.05)), "C:/rnaseq/polya_data/clusters/5rpkm3redo_lessT3R3_LRT_1dpa.txt", quote=FALSE, sep='\t')
+#write.table(topTags(lrt3, n=sum(FDR < 0.05)), "C:/rnaseq/polya_data/clusters/5rpkm3redo_lessT3R3_LRT_3dpa.txt", quote=FALSE, sep='\t')
+#write.table(topTags(lrt8, n=sum(FDR < 0.05)), "C:/rnaseq/polya_data/clusters/5rpkm3redo_lessT3R3_LRT_8dpa.txt", quote=FALSE, sep='\t')

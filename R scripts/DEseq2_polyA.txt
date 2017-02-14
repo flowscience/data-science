@@ -1,0 +1,93 @@
+#Load required packages
+library("DESeq2", lib.loc="C:/Program Files/R/R-3.1.2/library")
+library("vsn")
+library(MVN)
+
+#Read count data 
+counts <- read.delim("C:/rnaseq/polya_data/rpkm/count_strand_redo_rpkm5for3.txt", row.names="Gene")
+
+#Prepare sample annotations
+conditions <- c("A", "A", "A", "B", "B", "B", "C", "C", "C", "D", "D", "D")
+design <- factor(conditions)
+coldata <- data.frame(cbind(colnames(counts), group=design))
+
+#Check for recursiveness of data structures
+is.recursive(counts)
+is.recursive(coldata)
+is.recursive(design)
+
+#DESeq
+dds <- DESeqDataSetFromMatrix(counts, coldata, design=~group)
+ddsLRT <- DESeq(dds, test="LRT", full=~group, reduced= ~ 1)
+plotDispEsts(ddsLRT, main="NB-GLM LRT Dispersion")
+resLRT <- results(ddsLRT)
+resLRT01 <- results(ddsLRT, contrast=c("group","1","2"))
+resLRT03 <- results(ddsLRT, contrast=c("group","1","3"))
+resLRT08 <- results(ddsLRT, contrast=c("group","1","4"))
+resLRTOrdered <- resLRT[order(resLRT$padj),]
+resLRTOrdered01 <- resLRT01[order(resLRT01$padj),]
+resLRTOrdered03 <- resLRT03[order(resLRT03$padj),]
+resLRTOrdered08 <- resLRT08[order(resLRT08$padj),]
+resLRTSig <- subset(resLRT, padj < 0.05)
+resLRTSig01 <- subset(resLRTOrdered01, padj < 0.05)
+resLRTSig03 <- subset(resLRTOrdered03, padj < 0.05)
+resLRTSig08 <- subset(resLRTOrdered08, padj < 0.05)
+plotMA(resLRT01, main="0dpa v. 1dpa", ylim=c(-2,2))
+plotMA(resLRT03, main="0dpa v. 3dpa", ylim=c(-2,2))
+plotMA(resLRT08, main="0dpa v. 8dpa", ylim=c(-2,2))
+summary(resLRT01)
+summary(resLRT03)
+summary(resLRT08)
+summary(resLRT)
+
+#Export summaries
+sink("C:/rnaseq/polya_data/clusters/DEseq2_summaries.txt")
+"ANOVA-like Comparison"
+summary(resLRTSig)
+"1dpa"
+summary(resLRTSig01)
+"3dpa"
+summary(resLRTSig03)
+"8dpa"
+summary(resLRTSig08)
+sink()
+
+#Explore transformed data
+rld <- rlog(ddsLRT)
+vsd <- varianceStabilizingTransformation(ddsLRT)
+rlogMat <- assay(rld)
+vstMat <- assay(vsd)
+plotPCA(ddsLRT, intgroup=c("group"))
+notAllZero <- (rowSums(counts(ddsLRT))>0)
+meanSdPlot(counts(ddsLRT,normalized=TRUE)[notAllZero,], main="Raw Counts")
+par(mfrow=c(1,3))
+meanSdPlot(log2(counts(ddsLRT,normalized=TRUE)[notAllZero,] + 1), main="Log2")
+meanSdPlot(assay(rld[notAllZero,]), main="rLog")
+meanSdPlot(assay(vsd[notAllZero,]), main="VST")
+
+dev.off()
+
+#Export results
+write.table(as.data.frame(resLRTOrdered), file="C:/rnaseq/polya_data/clusters/DEseq2_LRT_ANOVA.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resLRTOrdered01), file="C:/rnaseq/polya_data/clusters/DEseq2_LRT_1dpa.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resLRTOrdered03), file="C:/rnaseq/polya_data/clusters/DEseq2_LRT_3dpa.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resLRTOrdered08), file="C:/rnaseq/polya_data/clusters/DEseq2_LRT_8dpa.txt", quote=FALSE, sep='\t')
+
+#Plot all DE genes one-by-one
+resLRTSig <- subset(resLRT, padj < 0.1)
+sig <- rownames(resLRTSig)
+for(item in sig){plotCounts(ddsLRT, gene=item, intgroup="group", col="blue", pch=18)}
+#for(item in sig){
+#	d <- plotCounts(ddsLRT, gene=item, intgroup="group", returnData=TRUE)
+#	ggplot(d, aes(x=group, y=count)) +
+#	geom_point(position=position_jitter(w=0.1,h=0)) +
+#	scale_y_log10(breaks=c(25,100,400))
+#}
+
+#Transformations
+rld <- rlog(ddsLRT)
+vsd <- varianceStabilizingTransformation(ddsLRT)
+rlogMat <- assay(rld)
+vstMat <- assay(vsd)
+write.table(rlogMat, file="C:/users/eli/desktop/1cpm3_nopara2_rlogMat.csv", quote=FALSE, sep='\t')
+write.table(vstMat, file="C:/users/eli/desktop/1cpm3_nopara2_vstMat.csv", quote=FALSE, sep='\t')
