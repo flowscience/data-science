@@ -1,0 +1,184 @@
+#Load required packages
+library("DESeq2", lib.loc="C:/Program Files/R/R-3.1.2/library")
+library("vsn")
+library(MVN)
+
+#Load matrix of raw counts
+mcount <- read.delim("C:/RNAseq/miRNA_data/count_strand_redo_rpkm5for3.txt", row.names="miRNA")
+
+#Prepare sample annotation file
+#conditions <- c(0,0,0,1,1,1,3,3,3,8,8,8)
+conditions <- c("B", "A", "A", "A", "B", "B", "C", "C", "C", "D", "D", "D")
+design <- factor(conditions)
+coldata <- data.frame(cbind(colnames(mcount), design))
+colnames(coldata) <- c("sample", "group")
+
+#Check for recursiveness of data structures
+is.recursive(mcount)
+is.recursive(coldata)
+is.recursive(design)
+
+#Aggregate experiment data
+dds <- DESeqDataSetFromMatrix(mcount, coldata, design=~group)
+
+#Perform DE analysis between 2 groups
+#dds <- DESeq(dds)
+#res <- results(dds)
+#resOrdered <- res[order(res$padj),]
+#summary(res)
+#plotMA(res, main="1cpm3 DESeq2", ylim=c(-2,2))
+#plotDispEsts(dds)
+#resSig <- subset(resOrdered, padj < 0.1)
+
+#Add unshrunken max-likelihood estimates to results (for comparison only)
+#resMLE <- results(dds, addMLE=TRUE)
+#resOrderedMLE <- resMLE[order(resMLE$padj),]
+#summary(resMLE)
+#plotMA(resMLE, main="1cpm3 DESeq2", ylim=c(-2,2))
+#resSigMLE <- subset(resOrderedMLE, padj < 0.1)
+
+#LRT test similar to EdgeR
+ddsLRT <- DESeq(dds, test="LRT", full=~group, reduced= ~ 1)
+resLRT <- results(ddsLRT)
+plotDispEsts(ddsLRT, main="NB-GLM LRT Dispersion")
+resLRT01 <- results(ddsLRT, contrast=c("group","A","B"))
+resLRT03 <- results(ddsLRT, contrast=c("group","A","C"))
+resLRT08 <- results(ddsLRT, contrast=c("group","A","D"))
+resLRTOrdered01 <- resLRT01[order(resLRT01$padj),]
+resLRTOrdered03 <- resLRT03[order(resLRT03$padj),]
+resLRTOrdered08 <- resLRT08[order(resLRT08$padj),]
+resLRTSig01 <- subset(resLRTOrdered01, padj < 0.1)
+resLRTSig03 <- subset(resLRTOrdered03, padj < 0.1)
+resLRTSig08 <- subset(resLRTOrdered08, padj < 0.1)
+plotMA(resLRT01, main="0dpa v. 1dpa", ylim=c(-2,2))
+plotMA(resLRT03, main="0dpa v. 3dpa", ylim=c(-2,2))
+plotMA(resLRT08, main="0dpa v. 8dpa", ylim=c(-2,2))
+sink("C:/users/eli/desktop/1cpm3_nopara2_B_DESeq2_LRT_summaries.txt")
+"ANOVA-like Comparison"
+summary(resLRT)
+"1dpa"
+summary(resLRT01)
+"3dpa"
+summary(resLRT03)
+"8dpa"
+summary(resLRT08)
+sink()
+
+#Extract DESeq transformations of the data
+rld <- rlog(ddsLRT)
+vsd <- varianceStabilizingTransformation(ddsLRT)
+rlogMat <- assay(rld)
+vstMat <- assay(vsd)
+write.table(rlogMat, file="C:/users/eli/desktop/1cpm3_nopara2_rlogMat.csv", quote=FALSE, sep='\t')
+write.table(vstMat, file="C:/users/eli/desktop/1cpm3_nopara2_vstMat.csv", quote=FALSE, sep='\t')
+
+#Explore mean-variance of normal and transformed data
+meanSdPlot(counts(dds,normalized=TRUE)[notAllZero,], main="Raw Counts")
+par(mfrow=c(1,3))
+notAllZero <- (rowSums(counts(dds))>0)
+meanSdPlot(log2(counts(dds,normalized=TRUE)[notAllZero,] + 1), main="Log2")
+meanSdPlot(assay(rld[notAllZero,]), main="rLog")
+meanSdPlot(assay(vsd[notAllZero,]), main="VST")
+
+dev.off()
+
+#Plot PCA of VST normalized samples
+plotPCA(vsd, intgroup=c("group"))
+
+#Assess multivariate normality of normal and transformed data
+#WARNING: runing mardiaTest() on large data sets is very computationally 
+#	intensive and may crash your R session, monitor your CPU & RAM closely
+mardiaTest(mcount, qqplot=TRUE)
+mardiaTest(log(mcount+1), qqplot=TRUE)
+mardiaTest(rlogMat, qqplot=TRUE)
+mardiaTest(vstMat, qqplot=TRUE)
+
+#Assess multivariate outliers in normal and transformed data
+outL <- mvOutlier(vsdm, qqplot=TRUE, method="quan")
+outL.adj <- mvOutlier(vsdm, qqplot=TRUE, method="adj.quan")
+mardiaTest(outL$newData, qqplot=TRUE)
+mardiaTest(outL.adj$newData, qqplot=TRUE)
+outL2 <- mvOutlier(outL$newData, qqplot=TRUE, method="adj.quan")
+mardiaTest(outL2$newData, qqplot=TRUE)
+
+#plot the maximum value of Cook’s distance for each row over the rank of the test statistic
+#to justify its use as a filtering criterion for a given test
+W <- res01$stat
+maxCooks <- apply(assays(ddsGLM)[["cooks"]],1,max)
+idx <- !is.na(W)
+plot(rank(W[idx]), maxCooks[idx], xlab="rank of Wald statistic",
+ylab="maximum Cook?s distance per gene",
+ylim=c(0,5), cex=.4, col=rgb(0,0,0,.3))
+m <- ncol(ddsGLM)
+p <- 3
+abline(h=qf(.99, p, m - p))
+
+#plot mean of normalized counts v. -log(pvalue) for a given test
+plot(res01$baseMean+1, -log10(res01$pvalue),
+     log="x", xlab="mean of normalized counts",
+     ylab=expression(-log[10](pvalue)),
+     ylim=c(0,30),
+     cex=.4, col=rgb(0,0,0,.3))
+
+#Bar plot of p-values for a given test
+use <- res01$baseMean > attr(res01,"filterThreshold")
+h1 <- hist(res01$pvalue[!use], breaks=0:50/50, plot=FALSE)
+h2 <- hist(res01$pvalue[use], breaks=0:50/50, plot=FALSE)
+colori <- c('do not pass'="khaki", 'pass'="powderblue")
+barplot(height = rbind(h1$counts, h2$counts), beside = FALSE,
+col = colori, space = 0, ylab="frequency", main="p-values for 0 v. 1dpa")
+text(x = c(0, length(h1$counts)), y = 0, label = paste(c(0,1)),
+adj = c(0.5,1.7), xpd=NA)
+legend("topright", fill=rev(colori), legend=rev(names(colori)))
+
+#Expanded model GLM analysis 
+ddsGLM <- DESeq(dds, betaPrior=TRUE, modelMatrixType="expanded")
+plotDispEsts(ddsGLM, main="miRNA NB-GLM Dispersion")
+res01 <- results(ddsGLM, contrast=c("group","1","2"))
+res03 <- results(ddsGLM, contrast=c("group","1","3"))
+res08 <- results(ddsGLM, contrast=c("group","1","4"))
+res13 <- results(ddsGLM, contrast=c("group","2","3"))
+res18 <- results(ddsGLM, contrast=c("group","2","4"))
+res38 <- results(ddsGLM, contrast=c("group","3","4"))
+resOrdered01 <- res01[order(res01$padj),]
+resOrdered03 <- res03[order(res03$padj),]
+resOrdered08 <- res08[order(res08$padj),]
+resOrdered13 <- res13[order(res13$padj),]
+resOrdered18 <- res18[order(res18$padj),]
+resOrdered38 <- res38[order(res38$padj),]
+resSig01 <- subset(resOrdered01, padj < 0.1)
+resSig03 <- subset(resOrdered03, padj < 0.1)
+resSig08 <- subset(resOrdered08, padj < 0.1)
+resSig13 <- subset(resOrdered13, padj < 0.1)
+resSig18 <- subset(resOrdered18, padj < 0.1)
+resSig38 <- subset(resOrdered38, padj < 0.1)
+plotMA(res01, main="0dpa v. 1dpa", ylim=c(-2,2))
+plotMA(res03, main="0dpa v. 3dpa", ylim=c(-2,2))
+plotMA(res08, main="0dpa v. 8dpa", ylim=c(-2,2))
+plotMA(res13, main="1dpa v. 3dpa", ylim=c(-2,2))
+plotMA(res18, main="1dpa v. 8dpa", ylim=c(-2,2))
+plotMA(res38, main="3dpa v. 8dpa", ylim=c(-2,2))
+sink("C:/users/eli/desktop/DESeq2_summaries.txt")
+summary(res01)
+summary(res03)
+summary(res08)
+summary(res13)
+summary(res18)
+summary(res38)
+sink()
+
+#Export GLM results
+write.table(as.data.frame(resOrdered01), file="C:/users/eli/desktop/DEseq2_0-1dpa.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resOrdered03), file="C:/users/eli/desktop/DEseq2_0-3dpa.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resOrdered08), file="C:/users/eli/desktop/DEseq2_0-8dpa.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resOrdered13), file="C:/users/eli/desktop/DEseq2_1-3dpa.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resOrdered18), file="C:/users/eli/desktop/DEseq2_1-8dpa.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resOrdered38), file="C:/users/eli/desktop/DEseq2_3-8dpa.txt", quote=FALSE, sep='\t')
+
+#Export significant DE genes only
+write.table(as.data.frame(resSig01), file="C:/users/eli/desktop/DEseq2_0-1dpaSig.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resSig03), file="C:/users/eli/desktop/DEseq2_0-3dpaSig.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resSig08), file="C:/users/eli/desktop/DEseq2_0-8dpaSig.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resSig13), file="C:/users/eli/desktop/DEseq2_1-3dpaSig.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resSig18), file="C:/users/eli/desktop/DEseq2_1-8dpaSig.txt", quote=FALSE, sep='\t')
+write.table(as.data.frame(resSig38), file="C:/users/eli/desktop/DEseq2_3-8dpaSig.txt", quote=FALSE, sep='\t')
